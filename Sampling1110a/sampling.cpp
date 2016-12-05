@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <numeric> 
 #include <string>
+#include <fstream>
 using namespace std;
 
 
@@ -40,21 +41,27 @@ void deletePoint();
 double angle(pair<float,float>);
 vector<pair<float, float>> nei(float, float);
 pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float c2);
-void maximum(float,float);
-bool ban(float,float);
-
+void maximum(pair<float, float>);
+pair<float, float> ban(pair<float, float>, pair<float, float>);
+void writeFile();
 
 //  define the window position on screen
 int window_x;
 int window_y;
+
+
+int helloTime = 0, okTime = 0;
+
+
+
 
 //  variables representing the window size
 float window_width = 350.0;
 float window_height = 350.0;
 int randomNum = 300000;
 int N = 1000;
-int maxN = 100000;
-int maxTime = 0;
+
+
 // 剩余点数，以及连续没有消点成功次数
 int remainingNum = 0;
 int reject = 0;
@@ -66,7 +73,8 @@ char *window_title = "Sample OpenGL FreeGlut App";
 
 
 float ratio = 0.79;
-float R = ratio*2*sqrt(window_width*window_height/(2*N*sqrt(3)));//定义标准点距
+float D = 2 * sqrt(window_width*window_height / (2 * N*sqrt(3)));
+float R = ratio * D;//定义标准点距
 //float u = 1.0;//定义单位距离
 float d = sqrt(2)*R / 2; //格子边长
 
@@ -152,9 +160,6 @@ void main(int argc, char **argv)
 	// Set the callback functions
 	glutDisplayFunc(display);
 
-	
-
-
 	//  Start GLUT event processing loop
 	glutMainLoop();
 	
@@ -198,6 +203,8 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT);
 	drawObject();
 	glutSwapBuffers();
+	writeFile();
+
 	//cout <<"time:"<< ++i<<" " ;
 
 	
@@ -229,7 +236,7 @@ void drawObject()
 		for (int j = 0; j < samplingRandomPointSet[i].size(); j++) {
 			for (auto point: samplingRandomPointSet[i][j])
 			{
-				maximum(point.second, point.first);
+				maximum(point);
 
 				if (!gridAdded[i][j]) {
 					glColor3f(1.0f, 0.0f, 0.0f);
@@ -440,7 +447,7 @@ vector<pair<float, float>> nei(float x, float y) {
 }
 
 
-void maximum(float x,float y) {
+void maximum(pair<float,float> p) {
 	/*float x, y;
 	while (true)
 	{
@@ -457,12 +464,15 @@ void maximum(float x,float y) {
 		}
 	}*/
 	
+	float x = p.first, y = p.second;
 	vector<pair<float, float>> neighbors=nei(x,y);
 	//cout << " neighbors:"<<neighbors.size() << endl;
 
 
 	vector<pair<float, float>> ::const_iterator it1=neighbors.begin();
 	vector<pair<float, float>> ::const_iterator it2 = neighbors.end()-1;
+
+	
 	float x1 = x, y1 = y;
 	
 
@@ -507,19 +517,34 @@ void maximum(float x,float y) {
 		float dY = excenter.second - y;
 
 		float dis = sqrt(pow(dX, 2) + pow(dY, 2));
-		if (dis > R) {
+		if (dis >= R) {
+			
+			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width) continue;
+			double a = angle(pair<float, float>(dX, dY));
+			double angle1 = angle(pair<float, float>(a1, b1));
+			double angle2 = angle(pair<float, float>(a2, b2));
+
+
+			//外心不在弧所对应的区域
+			if ((a - angle1)*(a - angle2) >= 0) {
+				//cout << "ok" << okTime++<<endl;
+				continue;
+			}
+
+			//ban
+			excenter = ban(excenter, p);
+
 			int xGrid = excenter.first / d;
 			int yGrid = excenter.second / d;
-			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width) continue;
 			if (gridFlag[xGrid][yGrid]) {
 				
-				if (ban(excenter.first, excenter.second)) break;
-
 				samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
+				numPoint++;
+
 				gridFlag[xGrid][yGrid] = false;
 				gridAdded[xGrid][yGrid] = false;
 				//cout << "maxTime:" << maxTime << endl;
-				cout << "("<<x << "," << y << ")" ;
+				//cout << "("<<x << "," << y << ")" ;
 				//for (auto n : neighbors) cout << "(" << n.first << "," << n.second << ")" <<endl;
 				cout <<endl<< "add(" << excenter.first << "," << excenter.second << ")" << endl<<endl;
 				//cout << "(" << (*it1).first << "," << (*it1).second << ") " << "(" << (*it2).first << "," << (*it2).second << ")" << endl;
@@ -532,10 +557,14 @@ void maximum(float x,float y) {
 }
 
 
-bool ban(float x,float y) {
+pair<float,float> ban(pair<float, float> excenter, pair<float, float> p) {
+	float x = excenter.first;
+	float y = excenter.second;
 	bool ban = false;
 	int xGrid = x / d;
 	int yGrid = y / d;
+
+	float px = p.first, py = p.second;
 
 	for (int i = xGrid - 2; i <= xGrid + 2; i++) {
 		if (i < 0 || i>h) continue;
@@ -552,14 +581,21 @@ bool ban(float x,float y) {
 					float dis = sqrt(pow(dX, 2) + pow(dY, 2));
 
 					if (dis < R) {
-						return true;
+						dX = (*it).first - px;
+						dY = (*it).second - py;
+						dis = sqrt(pow(dX, 2) + pow(dY, 2));
+
+						excenter=pair<float, float>(((*it).first + px) / 2, ((*it).second + py) / 2);
+						
+						cout << "hello "<<helloTime++ << " "<<dis<<endl;
+						return excenter;
 					}
 				}
 			}
 		}
 	}
 
-	return false;
+	return excenter;
 }
 
 pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float c2) {
@@ -596,4 +632,62 @@ pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float
 		system("pause");
 	}
 	return res;
+}
+
+void writeFile() {
+	string file = "sampling";
+	file.append(to_string(numPoint));
+	file.append(".txt");
+
+	ofstream outfile;
+	outfile.open(file);
+	outfile << numPoint << endl;
+
+	float min = D;
+
+
+	for (auto i : samplingRandomPointSet) {
+		for (auto j : i)
+		{
+			for (auto point : j) {
+				outfile << point.first / window_height << " " << point.second / window_width << endl;
+
+
+				float x = point.first;
+				float y = point.second;
+				int xGrid = x / d;
+				int yGrid = y / d;
+
+
+				for (int i = xGrid - 2; i <= xGrid + 2; i++) {
+					if (i < 0 || i>h) continue;
+					for (int j = yGrid - 2; j <= yGrid + 2; j++)
+					{
+						if (j < 0 || j>w) continue;
+						if (samplingRandomPointSet[i][j].empty()) continue;
+						else {
+							for (auto it = samplingRandomPointSet[i][j].begin(); it != samplingRandomPointSet[i][j].end(); it++)
+							{
+								float dX = (*it).first - x;
+								float dY = (*it).second - y;
+								if (dX == 0.0 && dY == 0.0) continue;
+								float dis = sqrt(pow(dX, 2) + pow(dY, 2));
+
+								min = min < dis ? min : dis;
+							}
+						}
+					}
+				}
+
+			}
+
+		}
+	}
+	outfile.close();
+
+	cout << "min:" << min << endl;
+
+	float realR = 2 * sqrt(window_width*window_height / (2 * (numPoint)*sqrt(3)));
+	cout << "realR:" << realR << endl;
+	cout << "relative radius:" << min / realR << endl;
 }
