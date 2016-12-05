@@ -65,7 +65,7 @@ int numPoint = 0;
 char *window_title = "Sample OpenGL FreeGlut App";
 
 
-float ratio = 0.78;
+float ratio = 0.79;
 float R = ratio*2*sqrt(window_width*window_height/(2*N*sqrt(3)));//定义标准点距
 //float u = 1.0;//定义单位距离
 float d = sqrt(2)*R / 2; //格子边长
