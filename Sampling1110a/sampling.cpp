@@ -65,7 +65,7 @@ int numPoint = 0;
 char *window_title = "Sample OpenGL FreeGlut App";
 
 
-float ratio = 0.75;
+float ratio = 0.78;
 float R = ratio*2*sqrt(window_width*window_height/(2*N*sqrt(3)));//定义标准点距
 //float u = 1.0;//定义单位距离
 float d = sqrt(2)*R / 2; //格子边长
@@ -510,7 +510,7 @@ void maximum(float x,float y) {
 		if (dis > R) {
 			int xGrid = excenter.first / d;
 			int yGrid = excenter.second / d;
-			if (xGrid < 0 || xGrid >= h || yGrid < 0 || yGrid >= w) continue;
+			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width) continue;
 			if (gridFlag[xGrid][yGrid]) {
 				
 				if (ban(excenter.first, excenter.second)) break;
@@ -518,8 +518,8 @@ void maximum(float x,float y) {
 				samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
 				gridFlag[xGrid][yGrid] = false;
 				gridAdded[xGrid][yGrid] = false;
-				cout << "maxTime:" << maxTime << endl;
-				cout << "("<<x << "," << y << ")" << endl<<endl;
+				//cout << "maxTime:" << maxTime << endl;
+				cout << "("<<x << "," << y << ")" ;
 				//for (auto n : neighbors) cout << "(" << n.first << "," << n.second << ")" <<endl;
 				cout <<endl<< "add(" << excenter.first << "," << excenter.second << ")" << endl<<endl;
 				//cout << "(" << (*it1).first << "," << (*it1).second << ") " << "(" << (*it2).first << "," << (*it2).second << ")" << endl;
