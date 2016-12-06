@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <numeric> 
 #include <string>
+#include <map>
 #include <fstream>
 using namespace std;
 
@@ -44,6 +45,8 @@ pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float
 void maximum(pair<float, float>);
 pair<float, float> ban(pair<float, float>, pair<float, float>);
 void writeFile();
+float distance(float, float, float, float);
+
 
 //  define the window position on screen
 int window_x;
@@ -443,6 +446,9 @@ vector<pair<float, float>> nei(float x, float y) {
 			}
 		}
 	}
+
+	
+
 	return res;
 }
 
@@ -466,11 +472,11 @@ void maximum(pair<float,float> p) {
 	
 	float x = p.first, y = p.second;
 	vector<pair<float, float>> neighbors=nei(x,y);
-	//cout << " neighbors:"<<neighbors.size() << endl;
+	cout << "neighbors:"<<neighbors.size();
 
 
-	vector<pair<float, float>> ::const_iterator it1=neighbors.begin();
-	vector<pair<float, float>> ::const_iterator it2 = neighbors.end()-1;
+	vector<pair<float, float>> ::const_iterator it1=neighbors.begin()+1;
+	vector<pair<float, float>> ::const_iterator it2 = neighbors.begin();
 
 	
 	float x1 = x, y1 = y;
@@ -485,19 +491,28 @@ void maximum(pair<float,float> p) {
 		return;
 	}
 
-	while (it1 != neighbors.end())
+
+	map <pair<float, float>, pair<float, float>> exMap;
+	vector<pair<float, float>>excs = {};
+
+	while (it2!=neighbors.end())
 	{
-		if (it2 == neighbors.end()) it2 = neighbors.begin();
-		
+		if (neighbors.size()==1)
+		{
+			break;
+		}
+		if (it1 == neighbors.end()) it1 = neighbors.begin();
+
 		float x2 = (*it1).first;
 		float y2 = (*it1).second;
+
 		float x3 = (*it2).first;
 		float y3 = (*it2).second;
+
 		float a1 = x2 - x1,b1 = y2 - y1, c1 = -((x1+x2)*(x2-x1)/2+(y2-y1)*(y1+y2)/2);
 		float a2 = x3 - x1, b2 = y3 - y1, c2 = -((x1 + x3)*(x3 - x1) / 2 + (y3 - y1)*(y1 + y3) / 2);
 
-		it1++;
-		it2++;
+		
 
 		if (a1*b2 == a2*b1) {
 			cout << x << " "<<y << " "<<endl;
@@ -507,11 +522,16 @@ void maximum(pair<float,float> p) {
 			cout << " line ";
 			system("pause");
 
-			continue;
+			//continue;
 		}
 
-		pair<float, float> excenter = xAndy(a1,b1,c1,a2,b2,c2);
 
+
+		pair<float, float> excenter = xAndy(a1,b1,c1,a2,b2,c2);
+		map <pair<float, float>, pair<float, float>>::iterator it = exMap.find(*it2);
+		if (it == exMap.end()) exMap.insert(pair<pair<float, float>, pair<float, float>>(*it2, excenter));
+		else
+			exMap[*it2] = excenter;
 		//cout <<"(" <<excenter.first << "," << excenter.second <<")   ";
 		float dX = excenter.first - x;
 		float dY = excenter.second - y;
@@ -519,7 +539,13 @@ void maximum(pair<float,float> p) {
 		float dis = sqrt(pow(dX, 2) + pow(dY, 2));
 		if (dis >= R) {
 			
-			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width) continue;
+			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width)
+			{
+				it1++;
+				it2++;
+				continue;
+			}
+			
 			double a = angle(pair<float, float>(dX, dY));
 			double angle1 = angle(pair<float, float>(a1, b1));
 			double angle2 = angle(pair<float, float>(a2, b2));
@@ -527,33 +553,89 @@ void maximum(pair<float,float> p) {
 
 			//外心不在弧所对应的区域
 			if ((a - angle1)*(a - angle2) >= 0) {
-				//cout << "ok" << okTime++<<endl;
+				if (distance(x1, y1, x2, y2) < distance(x1, y1, x3, y3)) {
+					//cout << " erase 2 " ;
+					if (it2 == neighbors.begin()) {
+					//	cout << " begin ";
+
+						neighbors.erase(it2);
+						it2 = neighbors.begin();
+						it1 = it2 + 1;
+					}
+					else {
+					//	cout << " not begin ";
+
+						if (it1 != neighbors.begin()) {
+							it2 = neighbors.erase(it2);
+							it2--;
+							it1 = it2 + 1;
+
+						}
+						else
+						{
+							it2 = neighbors.erase(it2);
+							it2--;
+							it1 = neighbors.begin();
+						}
+
+					}
+
+				}
+				else {
+					//cout << " erase 1 ";
+					if (it1 == neighbors.begin()) {
+					//	cout << " begin ";
+
+						it1 = neighbors.erase(it1);
+						it2 = neighbors.end() - 1;
+					}
+					else {
+					//	cout << " not begin ";
+						it1 = neighbors.erase(it1);
+					}
+
+				}
+
 				continue;
 			}
 
-			//ban
-			excenter = ban(excenter, p);
-
-			int xGrid = excenter.first / d;
-			int yGrid = excenter.second / d;
-			if (gridFlag[xGrid][yGrid]) {
-				
-				samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
-				numPoint++;
-
-				gridFlag[xGrid][yGrid] = false;
-				gridAdded[xGrid][yGrid] = false;
-				//cout << "maxTime:" << maxTime << endl;
-				//cout << "("<<x << "," << y << ")" ;
-				//for (auto n : neighbors) cout << "(" << n.first << "," << n.second << ")" <<endl;
-				cout <<endl<< "add(" << excenter.first << "," << excenter.second << ")" << endl<<endl;
-				//cout << "(" << (*it1).first << "," << (*it1).second << ") " << "(" << (*it2).first << "," << (*it2).second << ")" << endl;
-				//system("pause");
-
-			}
+			//excs.push_back(excenter);
 		}
-		
+		it1++;
+		it2++;
 	}
+
+
+	cout << " " << neighbors.size() << endl;
+	//ban
+	//excenter = ban(excenter, p);
+
+	//int xGrid = excenter.first / d;
+	//int yGrid = excenter.second / d;
+	//if (gridFlag[xGrid][yGrid]) {
+
+	//	samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
+	//	numPoint++;
+
+	//	gridFlag[xGrid][yGrid] = false;
+	//	gridAdded[xGrid][yGrid] = false;
+	//	//cout << "maxTime:" << maxTime << endl;
+	//	//cout << "("<<x << "," << y << ")" ;
+	//	//for (auto n : neighbors) cout << "(" << n.first << "," << n.second << ")" <<endl;
+	//	cout << endl << "add(" << excenter.first << "," << excenter.second << ")" << endl << endl;
+	//	//cout << "(" << (*it1).first << "," << (*it1).second << ") " << "(" << (*it2).first << "," << (*it2).second << ")" << endl;
+	//	//system("pause");
+
+	}
+}
+
+
+float distance(float x1,float y1,float x2,float y2) {
+	float dX = x1-x2;
+	float dY = y2 - y2;
+
+	float dis = sqrt(pow(dX, 2) + pow(dY, 2));
+	return dis;
 }
 
 
