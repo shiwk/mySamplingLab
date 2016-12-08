@@ -1,6 +1,6 @@
 #include <gl/freeglut.h>
 #define _USE_MATH_DEFINES
-#include <iostream>
+#include<iostream>
 #include <math.h>
 #include <vector>
 #include <utility>
@@ -37,13 +37,13 @@ void centerOnScreen();
 void drawObject();
 void deletePoint();
 double angle(pair<float, float>);
-vector<pair<float, float>> nei(float, float);
-pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float c2);
+vector<pair<float, float>> nei(pair<float, float>);
+pair<float, float> xAndy(float , float , float , float , float , float );
 void maximum(pair<float, float>);
-bool ban(pair<float, float>);
+bool ban(pair<float, float>, pair<float, float>);
 void writeFile();
-float distance(float, float, float, float);
-
+float distance(pair<float, float>, pair<float, float>);
+pair<float,float> pointOnCircle(pair<float, float>, pair<float, float>, float);
 
 //  define the window position on screen
 int window_x;
@@ -67,6 +67,9 @@ int remainingNum = 0;
 int reject = 0;
 int  deletePoints = 0;
 int numPoint = 0;
+
+
+int maxReject = 0, maxRejectByNeighbor = 0;
 
 //  variable representing the window title
 char *window_title = "Sample OpenGL FreeGlut App";
@@ -141,8 +144,16 @@ void main(int argc, char **argv)
 		}
 	}
 	numPoint = randomNum - deletePoints;
-	cout << numPoint << endl;
-
+	for (int i = 0; i < samplingRandomPointSet.size(); i++)
+	{
+		for (int j = 0; j < samplingRandomPointSet[i].size(); j++) {
+			for (auto point : samplingRandomPointSet[i][j])
+			{
+				maximum(point);
+			}
+		}
+	}
+	cout << "reject time:" << maxReject  << endl;
 
 	//  Connect to the windowing system + create a window
 	//  with the specified dimensions and position
@@ -236,8 +247,6 @@ void drawObject()
 		for (int j = 0; j < samplingRandomPointSet[i].size(); j++) {
 			for (auto point : samplingRandomPointSet[i][j])
 			{
-				maximum(point);
-
 				if (!gridAdded[i][j]) {
 					glColor3f(1.0f, 0.0f, 0.0f);
 					glPointSize(3.0);
@@ -252,7 +261,10 @@ void drawObject()
 			}
 		}
 	}
-	cout << numPoint << "before," << num << " after" << endl;
+	cout << numPoint << " before," ;
+
+	numPoint = num;
+	cout << numPoint  << " after" << endl;
 	glEnd();
 	glFlush(); // send all output to display 把数据从缓冲区弄到屏幕上
 
@@ -380,12 +392,17 @@ double angle(pair<float, float> p) {
 
 }
 
-vector<pair<float, float>> nei(float x, float y) {
+
+
+
+//找到p点周围R-2R范围的点 在空隙中插点
+vector<pair<float, float>> nei(pair<float,float> p) {
+
+	float x = p.first, y = p.second;
 
 	int xGrid = x / d;
 	int yGrid = y / d;
 
-	int neis = 0;
 	vector<double> angles = {};
 	vector<pair<float, float>> res = {};
 
@@ -394,6 +411,7 @@ vector<pair<float, float>> nei(float x, float y) {
 		for (int j = yGrid - 3; j <= yGrid + 3; j++)
 		{
 			if (j < 0 || j>=w) continue;
+			if (i == xGrid&&j == yGrid) continue;
 
 			else {
 				for (auto it = samplingRandomPointSet[i][j].begin(); it != samplingRandomPointSet[i][j].end(); it++)
@@ -401,12 +419,22 @@ vector<pair<float, float>> nei(float x, float y) {
 					float dX = (*it).first - x;
 					float dY = (*it).second - y;
 
+
 					float dis = sqrt(pow(dX, 2) + pow(dY, 2));
-
-					if (dis > R && dis < 2 * R) {
-
-						neis++;
-						pair<float, float> p((*it).first, (*it).second);
+					
+					
+					if (dis ==0) continue;
+			
+					else if ( dis < 2 * R) {
+						
+						if (dis < R) {
+							cout << "need push,dis:" << dis;
+							cout << " (" << p.first << "," << p.second << ")" << "(" << (*it).first << "," << (*it).second << ")" << endl;
+							//system("pause");
+						}
+						
+						
+						
 						pair<float, float> d(dX, dY);
 						double a = angle(d);
 						vector<pair<float, float>>::iterator itPoint = res.begin();
@@ -414,9 +442,10 @@ vector<pair<float, float>> nei(float x, float y) {
 
 						while (true)
 						{
+							
 							if (itAngle == angles.end()) {
 								angles.push_back(a);
-								res.push_back(p);
+								res.push_back(*it);
 								break;
 							}
 							else
@@ -428,7 +457,7 @@ vector<pair<float, float>> nei(float x, float y) {
 								}
 								else
 								{
-									res.insert(itPoint, p);
+									res.insert(itPoint, *it);
 									angles.insert(itAngle, a);
 									break;
 								}
@@ -443,7 +472,68 @@ vector<pair<float, float>> nei(float x, float y) {
 		}
 	}
 
+	vector<pair<float, float>> ::iterator it2 = res.begin();
+	vector<pair<float, float>> ::iterator it1 ;
+	cout<<endl << "("<<p.first << "," << p.second <<")" << endl;
+	cout << "neighbors1 "<<res.size()<<endl;
+	for (auto i : res) cout << "(" << i.first << "," << i.second << ")";
+	cout << endl;
+	//将大于120度的空隙填补一个点
+	while (it2!=res.end())
+	{
+	
+		it1 = it2 + 1;
+		
+		if (it1 == res.end()) it1 = res.begin();
+		double a = angle(pair<float, float>((*it1).first - x, (*it1).second - y)) - angle(pair<float, float>((*it2).first - x, (*it2).second - y));
+		if (it1 == res.begin()) a += (2 * M_PI);
 
+		if (a >2* M_PI/3) {
+			cout << "a:" << a/M_PI <<  "(" << (*it1).first << "," << (*it1).second << ")" << "(" << (*it2).first << "," << (*it2).second << ")";
+
+			float a1=(*it1).first-x, b1=(*it1).second-y, c1 = -(((*it1).first + x)*((*it1).first - x) / 2 + ((*it1).second - y)*((*it1).second + y) / 2);
+			float a2 = (*it2).first - x, b2 = (*it2).second - y, c2 = -(((*it2).first + x)*((*it2).first - x) / 2 + ((*it2).second - y)*((*it2).second + y) / 2);
+
+			pair<float, float>excenter=xAndy(a1,b1,c1,a2,b2,c2);
+			cout << "excenter:(" << excenter.first << "," << excenter.second << ")" << endl;
+			float dis = distance(p, excenter);
+			pair<float, float> newPoint = pointOnCircle(excenter, p, dis);
+			cout << "newPoint:(" << newPoint.first << "," << newPoint.second << ")" << endl;
+
+			if (a / M_PI>1)
+			{
+				newPoint.first = 2 * x - newPoint.first;
+				newPoint.second = 2 * y - newPoint.second;
+			}
+			cout << "distance:" << distance(p,newPoint) << "(" << p.first << "," << p.second << ")" << "(" << newPoint.first << "," << newPoint.second << ")";
+			cout << endl;
+
+			if (newPoint.first>0 && newPoint.first<window_height&& newPoint.second>0 && newPoint.second<window_width) ban(newPoint, p);
+			
+			if (it1 == res.begin()) {
+				if (angle(pair<float, float>((*it2).first - x, (*it2).second - y)) < angle(pair<float, float>(newPoint.first - x, newPoint.second - y))) {
+					res.push_back(newPoint);
+					it2 = res.end() - 2;
+				}
+				else {
+					res.insert(res.begin(), newPoint);
+					it2 = res.end() - 1;
+				}
+				//system("pause");
+			}
+			else {
+				it1 = res.insert(it1, newPoint);
+				it2 = it1 - 1;
+			}
+			//system("pause");
+			continue;
+		}
+		it2++;
+	}
+	cout << "neighbors2 " << res.size();
+
+	for (auto i : res) cout << "(" << i.first << "," << i.second << ")";
+	cout << endl;
 
 	return res;
 }
@@ -455,31 +545,27 @@ void maximum(pair<float, float> p) {
 
 	float x = p.first, y = p.second;
 
-	vector<pair<float, float>> neighbors = nei(x, y);
-
-	cout <<endl<< "neighbors:" << neighbors.size() << endl;
-
-
-	
-
+	vector<pair<float, float>> neighbors = nei(p);
 
 	float x1 = x, y1 = y;
 
 
 	if (neighbors.size() == 0) {
 		cout << "no neighbors";
+		system("pause");
 		return;
 	}
 	if (neighbors.size() == 1) {
-		cout << "1 neighbors";
+		cout << "only 1 neighbors";
+		system("pause");
 		return;
 	}
-	for(auto i:neighbors) cout << "(" << i.first << "," << i.second << ")" ;
+	
+	cout << endl;
+	vector<pair<float, float>> ::iterator it1 = neighbors.begin() + 1;
+	vector<pair<float, float>> ::iterator it2 = neighbors.begin();
 
-	vector<pair<float, float>> ::const_iterator it1 = neighbors.begin() + 1;
-	vector<pair<float, float>> ::const_iterator it2 = neighbors.begin();
-
-	map <pair<float, float>, pair<float, float>> exMap;
+	map <pair<pair<float, float>, pair<float, float>>, pair<float, float>> exMap;
 
 	while (it2 != neighbors.end())
 	{
@@ -487,6 +573,7 @@ void maximum(pair<float, float> p) {
 		{
 			break;
 		}
+		it1 = it2 + 1;
 		if (it1 == neighbors.end()) it1 = neighbors.begin();
 
 		float x2 = (*it1).first;
@@ -512,119 +599,125 @@ void maximum(pair<float, float> p) {
 		}
 
 
-		cout << endl << " map ";
+
 		pair<float, float> excenter = xAndy(a1, b1, c1, a2, b2, c2);
-		map <pair<float, float>, pair<float, float>>::iterator it = exMap.find(*it2);
-		if (it == exMap.end()) {
-			exMap.insert(pair<pair<float, float>, pair<float, float>>(*it2, excenter));
-		}
-		else
-			exMap[*it2] = excenter;
-
-		cout << " delete  ";
-
-		//cout <<"(" <<excenter.first << "," << excenter.second <<")   ";
 		float dX = excenter.first - x;
 		float dY = excenter.second - y;
 
 		float dis = sqrt(pow(dX, 2) + pow(dY, 2));
+
+		
 		if (dis >= R) {
 
-			if (excenter.first < 0 || excenter.first> window_height || excenter.second < 0 || excenter.second > window_width)
-			{
-				it1++;
-				it2++;
-				continue;
-			}
-
-			double a = angle(pair<float, float>(dX, dY));
-			double angle1 = angle(pair<float, float>(a1, b1));
-			double angle2 = angle(pair<float, float>(a2, b2));
-
-
 			//外心不在弧所对应的区域 可消点
-			if ((a - angle1)*(a - angle2) >= 0) {
-				if (distance(x1, y1, x2, y2) < distance(x1, y1, x3, y3)) {
-					//cout << " erase 2 " ;
+			float dX1 = (*it1).first - x, dX2 = (*it2).first - x, dY1 = (*it1).second - y, dY2 = (*it2).second - y;
+			pair<float, float> pos = xAndy(dX1, dX2, -dX, dY1, dY2, -dY);
+			if (pos.first<0 || pos.second<0) {
+				if (distance(*it1,p) < distance(*it2,p)) {
+					cout << "erase 2 " ;
 					if (it2 == neighbors.begin()) {
-						//	cout << " begin ";
+						cout << " begin,dis:"<<dis;
+						cout << " delete(" << (*it2).first << "," << (*it2).second << ")"<< "(" << (*it1).first << "," << (*it1).second << ")";
 
 						neighbors.erase(it2);
 						it2 = neighbors.begin();
-						it1 = it2 + 1;
+
 					}
 					else {
-						//	cout << " not begin ";
+						cout << " not begin,dis:" << dis; 
+						cout << " delete(" << (*it2).first << "," << (*it2).second << ")" << "(" << (*it1).first << "," << (*it1).second << ")";
 
 						if (it1 != neighbors.begin()) {
 							it2 = neighbors.erase(it2);
 							it2--;
-							it1 = it2 + 1;
-
 						}
 						else
 						{
-							it2 = neighbors.erase(it2);
-							it2--;
-							it1 = neighbors.begin();
+							neighbors.erase(it2);
+							it2=neighbors.end()-1;
 						}
 					}
-
 				}
 				else {
-					//cout << " erase 1 ";
+					cout << "erase 1 ";
 					if (it1 == neighbors.begin()) {
-						//	cout << " begin ";
+						cout << " begin,dis:" << dis;
+						cout << " delete(" << (*it2).first << "," << (*it2).second << ")" << "(" << (*it1).first << "," << (*it1).second << ")";
 
-						it1 = neighbors.erase(it1);
+						neighbors.erase(it1);
 						it2 = neighbors.end() - 1;
 					}
 					else {
-						//	cout << " not begin ";
-						it1 = neighbors.erase(it1);
+						cout << " not begin,dis:" << dis;
+						cout << " delete(" << (*it2).first << "," << (*it2).second << ")" << "(" << (*it1).first << "," << (*it1).second << ")";
+
+						neighbors.erase(it1);
 					}
 
 				}
-
+				cout << "after delete"<< (*it2).first << "," << (*it2).second << ")"<<endl;
 				continue;
 			}
-
-			//excs.push_back(excenter);
+			pair<pair<float, float>, pair<float, float>> pointPair(*it1, *it2);
+			map <pair<pair<float, float>, pair<float, float>>, pair<float, float>>::iterator it = exMap.find(pointPair);
+			if (it == exMap.end()) {
+				exMap.insert(pair<pair<pair<float, float>, pair<float, float>>, pair<float, float>>(pointPair, excenter));
+			}
+			else
+				exMap[pointPair] = excenter;
 		}
-		it1++;
+
 		it2++;
 	}
 
-	for (auto i : neighbors) cout << "(" << i.first << "," << i.second << ")   " ;
 
-	cout << endl << "afterdelete" << neighbors.size()<<endl;
-	cout << "(" << p.first << "," << p.second << ")" << endl;
+	cout <<"neighbors "<< neighbors.size();
+	for (auto i : neighbors) cout << "(" << i.first << "," << i.second << ")";
+	cout << endl;
+
+
 	//ban
+	it2 = neighbors.begin();
 	int j = 0;
-	for (auto i : neighbors)
+	while (it2!=neighbors.end())
 	{
-		map <pair<float, float>, pair<float, float>>::iterator it = exMap.find(i);
+		it1 = it2 + 1;
+		if (it1 == neighbors.end()) it1 = neighbors.begin();
+		pair<pair<float, float>, pair<float, float>> pointPair(*it1, *it2);
+		it2++;
+
+		map <pair<pair<float, float>, pair<float, float>>, pair<float, float>>::iterator it = exMap.find(pointPair);
 		if (it == exMap.end()) {
 			cout << "no excenter" << endl;
-			system("pause");
+			//system("pause");
+			continue;
 		}
-		pair<float, float> excenter = exMap[i];
-		j++;
+		pair<float, float> excenter = exMap[pointPair];
 		//excenter = ban(excenter, p);
-		cout << "(" << excenter.first << "," << excenter.second << ")" << endl;
+		if (excenter.first<0 || excenter.first>window_height || excenter.second<0 | excenter.second>window_width)continue;
 		int xGrid = excenter.first / d;
 		int yGrid = excenter.second / d;
-		//cout <<"("<< xGrid << "," << yGrid <<")"<< endl;
-		if (xGrid<0 || xGrid>=h | yGrid<0 || yGrid>=w) continue;
 
-		if (gridFlag[xGrid][yGrid]) {
-			if(ban(excenter)) samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
-			else continue;
+		if (xGrid < 0 || xGrid >= h | yGrid < 0 || yGrid >= w) continue;
 
-			numPoint++;
+		if (gridFlag[xGrid][yGrid]){
+			
+			float dis1 = distance(excenter, p);
+			if (dis1 > R) {
+				//将外心转为圆上的点
+				excenter= pointOnCircle(excenter,p,dis1);
+				cout << "(" << excenter.first << "," << excenter.second << ")" << endl;
+				if (ban(excenter, p)) {
+					samplingRandomPointSet[xGrid][yGrid].push_back(excenter);
+					//numPoint++;
 
-			gridFlag[xGrid][yGrid] = false;
-			gridAdded[xGrid][yGrid] = false;
+					gridFlag[xGrid][yGrid] = false;
+					gridAdded[xGrid][yGrid] = false;
+					cout << "add success!";
+					j++;
+				}
+				else continue;
+			}
 		}
 	}
 
@@ -633,9 +726,12 @@ void maximum(pair<float, float> p) {
 
 
 
-float distance(float x1, float y1, float x2, float y2) {
+float distance(pair<float,float>p1, pair<float,float>p2) {
+	float x1 = p1.first, y1 = p1.second;
+	float x2 = p2.first, y2 = p2.second;
+
 	float dX = x1 - x2;
-	float dY = y2 - y2;
+	float dY = y1 - y2;
 
 	float dis = sqrt(pow(dX, 2) + pow(dY, 2));
 	return dis;
@@ -645,26 +741,41 @@ float distance(float x1, float y1, float x2, float y2) {
 
 
 
-bool ban(pair<float, float> excenter) {
+bool ban(pair<float, float> excenter,pair<float,float> p) {
 	float x = excenter.first;
 	float y = excenter.second;
-	
+	cout << "(" << x << "," << y << ")";
 	int xGrid = x / d;
 	int yGrid = y / d;
 
+	int xPGrid = p.first / d;
+	int yPGrid = p.second / d;
 	for (int i = xGrid - 2; i <= xGrid + 2; i++) {
 		if (i < 0 || i>=h) continue;
 		for (int j = yGrid - 2; j <= yGrid + 2; j++)
 		{
 			if (j < 0 || j>=w) continue;
+			if(i == xPGrid&&j == yPGrid) continue;
 			if (samplingRandomPointSet[i][j].empty()) continue;
 			else {
 				for (auto it = samplingRandomPointSet[i][j].begin(); it != samplingRandomPointSet[i][j].end(); it++)
 				{
 					
-					float dis = distance((*it).first, (*it).second,x,y);
+					float dis = distance((*it),excenter);
 
 					if (dis < R) {
+						float dis1 = distance(*it, p);
+						if ( dis1< 2 * R && dis1>R) {
+							float l = distance(excenter, p);
+							cout << " error:" <<dis<<","<<l  << "(" << (*it).first << "," << (*it).second << ")" << endl;
+							system("pause");
+						}
+						else{
+							maxReject++;
+							cout << "reject by (" << (*it).first << "," << (*it).second << "),"<< dis1 << endl;
+							system("pause");
+						}
+						
 						return false;
 					}
 				}
@@ -673,6 +784,22 @@ bool ban(pair<float, float> excenter) {
 	}
 
 	return true;
+}
+
+
+
+pair<float, float>pointOnCircle(pair<float, float>q, pair<float, float>p, float dis) {
+	pair<float, float> res;
+	
+	//pair<float, float> por = pair<float, float>(pos.first*R/dis,pos.second*R/dis);
+
+	float x = p.first + (q.first - p.first)*R / dis;
+	float y = p.second + (q.second - p.second)*R / dis;
+
+	res.first = x;
+	res.second = y;
+	
+	return res;
 }
 
 pair<float, float> xAndy(float a1, float b1, float c1, float a2, float b2, float c2) {
