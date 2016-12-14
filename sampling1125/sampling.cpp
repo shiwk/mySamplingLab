@@ -53,7 +53,6 @@ int N = 0;
 int numRandom = 0;
 int rejectTime = 0;
 // 剩余点数，以及连续没有消点成功次数
-int remainingNum = 0;
 int reject = 0;
 
 
@@ -74,7 +73,7 @@ int h =0;
 vector < pair<float, float>> points ;
 vector<vector<pair<float, float>>> rows;
 vector<vector<vector<pair<float, float>>>> samplingRandomPointSet;
-
+vector<vector<vector<pair<float, float>>>> initialPointSet;
 
 int deletePoints = 0;
 
@@ -91,9 +90,9 @@ void pointSet() {
 		int xGrid = x / d;
 		int yGrid = y / d;
 
-		samplingRandomPointSet[xGrid][yGrid].push_back(pair<float, float>(x, y));
+		initialPointSet[xGrid][yGrid].push_back(pair<float, float>(x, y));
 	}
-	cout << "Random" << endl;
+	
 
 
 }
@@ -107,8 +106,10 @@ void main(int argc, char **argv)
 	cin >> numRandom;
 	cout << "N:";
 	cin >> N;
-	cout << "rejectTime:";
-	cin >> rejectTime;
+
+	/*cout << "rejectTime:";
+	cin >> rejectTime;*/
+
 	float D = 2 * sqrt(window_width*window_height / (2 * N*sqrt(3)));
 	R = ratio * D;
 	d = sqrt(2)*R / 2;
@@ -119,54 +120,65 @@ void main(int argc, char **argv)
 	h = static_cast <int> (window_height / d) + 5;
 
 	points = {};
-	rows = vector<vector<pair<float, float>>> (w, points);
-	samplingRandomPointSet=vector<vector<vector<pair<float, float>>>> (h, rows);
-
+	rows = vector<vector<pair<float, float>>>(w, points);
+	initialPointSet = vector<vector<vector<pair<float, float>>>>(h, rows);
 
 
 	pointSet();
+	samplingRandomPointSet = initialPointSet;
 
 	cout << "R:" << R << "  time:" << currentDateTime() << endl;
 
-	int i = 0;
+	int numPoints = 0;
+
+	int i = 0;//投掷点数
+
+
+
+	numPoints = 0;
+	deletePoints = 0;
+	samplingRandomPointSet = initialPointSet;
+	reject = 0;
+	R = D*ratio;
+	cout << "ratio:" << ratio << "  R:" << R << endl;
+
+
 	int tmp = deletePoints;
+
+	//samplingRandomPointSet = initialPointSet;
 	while (true) {
 		i++;
-
-		//if (deletePoints >= 28900) {
-		//	cout << "R:" << R << "  time:" << currentDateTime() << endl;
-		//	//system("pause");
-		//	cout << i<<" "<<deletePoints << endl;
-
-		//	break;
-		//}
-		//cout << deletePoints << endl;
-		//drawObject();
-		//cout <<"time:"<< ++i<<" " ;
 		deletePoint();
 
-		if (deletePoints == tmp) {
-			reject++;
-			if (reject == rejectTime) {
-				cout << "R:" << R << "  time:" << currentDateTime() << endl;
-				//system("pause");
-				cout << i << " " << deletePoints << endl;
-				break;
-			}
-			continue;
+		//if (deletePoints == tmp) {
+		//	reject++;
+		//	if (reject == rejectTime) {
+		//		cout << currentDateTime() << endl;
+		//		//system("pause");
+		//		cout << "deletePoints: " << deletePoints << endl;
+		//		break;
+		//	}
+		//	continue;
+		//}
+		//else {
+		//	reject = 0;
+		//	//cout << i << " " << deletePoints << endl;
+		//	tmp = deletePoints;
+		//}
+
+		if (deletePoints >= numRandom - N-100) {
+			cout << currentDateTime() << endl;
+			//system("pause");
+			break;
 		}
-		else {
-			reject = 0;
-			//cout << i << " " << deletePoints << endl;
-			tmp = deletePoints;
-		}
+		//else cout << deletePoints << endl;
 
 	}
-	int numPoints = numRandom - deletePoints;
+	numPoints = numRandom - deletePoints;
 	string file = "sampling";
 	file.append(to_string(numPoints));
 	file.append(".txt");
-	
+
 	ofstream outfile;
 	outfile.open(file);
 	outfile << numPoints << endl;
@@ -175,14 +187,14 @@ void main(int argc, char **argv)
 		{
 			for (auto point : j) {
 				outfile << point.first / window_height << " " << point.second / window_width << endl;
-				
-				
+
+
 				float x = point.first;
 				float y = point.second;
 				int xGrid = x / d;
 				int yGrid = y / d;
 
-				
+
 				for (int i = xGrid - 2; i <= xGrid + 2; i++) {
 					if (i < 0 || i>h) continue;
 					for (int j = yGrid - 2; j <= yGrid + 2; j++)
@@ -196,7 +208,7 @@ void main(int argc, char **argv)
 								float dY = (*it).second - y;
 								if (dX == 0.0 && dY == 0.0) continue;
 								float dis = sqrt(pow(dX, 2) + pow(dY, 2));
-								
+
 								min = min < dis ? min : dis;
 							}
 						}
@@ -209,12 +221,15 @@ void main(int argc, char **argv)
 	}
 	outfile.close();
 
-	cout <<"min:"<< min << endl;
+	cout << "min:" << min << endl;
 
-	float realR =  2 * sqrt(window_width*window_height / (2 * (numPoints)*sqrt(3)));
+	float realR = 2 * sqrt(window_width*window_height / (2 * (numPoints)*sqrt(3)));
 	cout << "realR:" << realR << endl;
 	cout << "relative radius:" << min / realR << endl;
 
+
+	cout << "point num:" << numPoints << endl << endl;
+	ratio = (static_cast <float>(D - realR) / D + 1)*ratio;
 	glutInit(&argc, argv);
 	centerOnScreen();
 	glutInitWindowSize(window_width, window_height);
